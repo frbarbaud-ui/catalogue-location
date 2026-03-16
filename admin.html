@@ -3,107 +3,177 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin catalogue</title>
+  <title>Administration du catalogue</title>
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: Arial, sans-serif;
-      background: #f5f5f5;
       margin: 0;
       padding: 40px 20px;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(180deg, #f7f7f7 0%, #efefef 100%);
+      color: #111;
     }
+
     .box {
-      max-width: 560px;
+      max-width: 580px;
       margin: 0 auto;
-      background: white;
-      padding: 28px;
-      border-radius: 14px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      background: #fff;
+      padding: 32px;
+      border-radius: 16px;
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.08);
     }
+
     h1 {
-      margin-top: 0;
+      margin: 0 0 12px;
+      font-size: 28px;
+      line-height: 1.2;
     }
+
+    p.intro {
+      margin: 0 0 24px;
+      color: #555;
+      line-height: 1.5;
+    }
+
     label {
       display: block;
       margin: 18px 0 8px;
       font-weight: bold;
+      font-size: 15px;
     }
+
     input[type="password"],
     input[type="file"] {
       width: 100%;
-      box-sizing: border-box;
-      padding: 12px;
+      padding: 12px 14px;
       border: 1px solid #ccc;
       border-radius: 10px;
-      background: white;
+      background: #fff;
+      font-size: 15px;
     }
+
+    input[type="password"]:focus,
+    input[type="file"]:focus {
+      outline: none;
+      border-color: #111;
+    }
+
+    .help {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #666;
+    }
+
     button {
-      margin-top: 18px;
       width: 100%;
-      padding: 14px;
+      margin-top: 22px;
+      padding: 14px 18px;
       border: 0;
       border-radius: 10px;
       background: #111;
-      color: white;
+      color: #fff;
+      font-size: 15px;
       font-weight: bold;
       cursor: pointer;
+      transition: opacity 0.2s ease;
     }
+
+    button:hover {
+      opacity: 0.92;
+    }
+
     button:disabled {
       opacity: 0.6;
       cursor: not-allowed;
     }
-    .status {
+
+    .progress {
       margin-top: 16px;
-      padding: 12px;
-      border-radius: 10px;
+      font-size: 14px;
+      color: #444;
+      min-height: 20px;
+    }
+
+    .status {
       display: none;
+      margin-top: 14px;
+      padding: 14px;
+      border-radius: 10px;
+      font-size: 14px;
+      line-height: 1.45;
       white-space: pre-line;
     }
+
     .status.ok {
       display: block;
       background: #e8f7e8;
       color: #1d6b1d;
+      border: 1px solid #cfe9cf;
     }
+
     .status.err {
       display: block;
       background: #fdeaea;
       color: #9c1f1f;
+      border: 1px solid #f4caca;
     }
-    .small {
-      margin-top: 16px;
+
+    .links {
+      margin-top: 24px;
+      padding-top: 18px;
+      border-top: 1px solid #eee;
+      text-align: center;
       font-size: 14px;
       color: #555;
-      text-align: center;
     }
-    .small a {
+
+    .links a {
       color: #111;
+      font-weight: bold;
+      text-decoration: none;
     }
-    .progress {
-      margin-top: 12px;
-      font-size: 14px;
-      color: #444;
+
+    .links a:hover {
+      text-decoration: underline;
+    }
+
+    .note {
+      margin-top: 10px;
+      font-size: 13px;
+      color: #777;
     }
   </style>
 </head>
 <body>
   <div class="box">
     <h1>Administration du catalogue</h1>
-    <p>Saisis le mot de passe, puis choisis le nouveau PDF.</p>
+    <p class="intro">
+      Saisis le mot de passe puis sélectionne un nouveau fichier PDF pour remplacer le catalogue actuellement en ligne.
+    </p>
 
     <form id="uploadForm">
       <label for="password">Mot de passe</label>
-      <input id="password" type="password" required />
+      <input id="password" type="password" placeholder="Votre mot de passe" required />
 
       <label for="file">Nouveau catalogue PDF</label>
       <input id="file" type="file" accept="application/pdf,.pdf" required />
+      <div class="help">Format accepté : PDF uniquement — taille maximum : 30 Mo</div>
 
       <button id="submitBtn" type="submit">Mettre à jour le catalogue</button>
     </form>
 
-    <div id="progress" class="progress"></div>
-    <div id="status" class="status"></div>
+    <div id="progress" class="progress" aria-live="polite"></div>
+    <div id="status" class="status" aria-live="polite"></div>
 
-    <div class="small">
-      Catalogue public : <a href="/catalogue" target="_blank" rel="noopener">/catalogue</a>
+    <div class="links">
+      Catalogue public :
+      <a href="/catalogue" target="_blank" rel="noopener">/catalogue</a>
+      <div class="note">
+        Après mise à jour, l’ancienne version peut rester affichée jusqu’à 1 minute à cause du cache.
+      </div>
     </div>
   </div>
 
@@ -111,20 +181,38 @@
     import { upload } from 'https://esm.sh/@vercel/blob/client?bundle';
 
     const form = document.getElementById('uploadForm');
-    const statusBox = document.getElementById('status');
+    const passwordInput = document.getElementById('password');
+    const fileInput = document.getElementById('file');
     const progressBox = document.getElementById('progress');
+    const statusBox = document.getElementById('status');
     const submitBtn = document.getElementById('submitBtn');
+
+    const MAX_SIZE_MB = 30;
+    const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
+
+    function resetMessages() {
+      progressBox.textContent = '';
+      statusBox.textContent = '';
+      statusBox.className = 'status';
+      statusBox.style.display = 'none';
+    }
 
     function showStatus(message, type) {
       statusBox.textContent = message;
       statusBox.className = 'status ' + type;
+      statusBox.style.display = 'block';
+    }
+
+    function getReadableSize(bytes) {
+      return (bytes / 1024 / 1024).toFixed(1) + ' Mo';
     }
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
+      resetMessages();
 
-      const password = document.getElementById('password').value.trim();
-      const file = document.getElementById('file').files[0];
+      const password = passwordInput.value.trim();
+      const file = fileInput.files[0];
 
       if (!password) {
         showStatus('Merci de saisir le mot de passe.', 'err');
@@ -132,22 +220,32 @@
       }
 
       if (!file) {
-        showStatus('Merci de choisir un PDF.', 'err');
+        showStatus('Merci de sélectionner un fichier PDF.', 'err');
         return;
       }
 
-      if (!file.name.toLowerCase().endsWith('.pdf')) {
-        showStatus('Le fichier doit être un PDF.', 'err');
+      const isPdf =
+        file.type === 'application/pdf' ||
+        file.name.toLowerCase().endsWith('.pdf');
+
+      if (!isPdf) {
+        showStatus('Le fichier sélectionné doit être un PDF.', 'err');
+        return;
+      }
+
+      if (file.size > MAX_SIZE_BYTES) {
+        showStatus(
+          `Le fichier est trop volumineux (${getReadableSize(file.size)}).\nTaille maximum autorisée : ${MAX_SIZE_MB} Mo.`,
+          'err'
+        );
         return;
       }
 
       submitBtn.disabled = true;
-      progressBox.textContent = 'Préparation de l’envoi...';
-      showStatus('', 'ok');
-      statusBox.style.display = 'none';
+      progressBox.textContent = 'Upload en cours... Merci de patienter.';
 
       try {
-        const blob = await upload('catalogues/catalogue.pdf', file, {
+        await upload('catalogues/catalogue.pdf', file, {
           access: 'public',
           handleUploadUrl: '/api/catalogue-upload',
           clientPayload: JSON.stringify({ password }),
@@ -155,15 +253,27 @@
 
         progressBox.textContent = '';
         showStatus(
-          'Catalogue mis à jour avec succès.\nRecharge /catalogue dans 1 minute maximum si l’ancienne version reste en cache.',
+          'Le catalogue a bien été mis à jour avec succès.\nRecharge la page /catalogue dans 1 minute maximum si l’ancienne version apparaît encore.',
           'ok'
         );
 
         form.reset();
-        console.log('Upload terminé :', blob);
       } catch (error) {
         progressBox.textContent = '';
-        showStatus(error?.message || 'Erreur pendant l’upload.', 'err');
+
+        let message = 'Une erreur est survenue pendant la mise à jour du catalogue.';
+
+        if (error?.message) {
+          if (error.message.includes('Mot de passe incorrect')) {
+            message = 'Mot de passe incorrect.';
+          } else if (error.message.includes('Failed to fetch') || error.message.includes('fetch')) {
+            message = 'Impossible de joindre le serveur. Vérifie la connexion internet puis réessaie.';
+          } else {
+            message = error.message;
+          }
+        }
+
+        showStatus(message, 'err');
       } finally {
         submitBtn.disabled = false;
       }

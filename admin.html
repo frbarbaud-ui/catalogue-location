@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin catalogue</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 40px 20px;
+    }
+    .box {
+      max-width: 560px;
+      margin: 0 auto;
+      background: white;
+      padding: 28px;
+      border-radius: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    }
+    h1 {
+      margin-top: 0;
+    }
+    label {
+      display: block;
+      margin: 18px 0 8px;
+      font-weight: bold;
+    }
+    input[type="password"],
+    input[type="file"] {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 12px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      background: white;
+    }
+    button {
+      margin-top: 18px;
+      width: 100%;
+      padding: 14px;
+      border: 0;
+      border-radius: 10px;
+      background: #111;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .status {
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 10px;
+      display: none;
+      white-space: pre-line;
+    }
+    .status.ok {
+      display: block;
+      background: #e8f7e8;
+      color: #1d6b1d;
+    }
+    .status.err {
+      display: block;
+      background: #fdeaea;
+      color: #9c1f1f;
+    }
+    .small {
+      margin-top: 16px;
+      font-size: 14px;
+      color: #555;
+      text-align: center;
+    }
+    .small a {
+      color: #111;
+    }
+    .progress {
+      margin-top: 12px;
+      font-size: 14px;
+      color: #444;
+    }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>Administration du catalogue</h1>
+    <p>Saisis le mot de passe, puis choisis le nouveau PDF.</p>
+
+    <form id="uploadForm">
+      <label for="password">Mot de passe</label>
+      <input id="password" type="password" required />
+
+      <label for="file">Nouveau catalogue PDF</label>
+      <input id="file" type="file" accept="application/pdf,.pdf" required />
+
+      <button id="submitBtn" type="submit">Mettre à jour le catalogue</button>
+    </form>
+
+    <div id="progress" class="progress"></div>
+    <div id="status" class="status"></div>
+
+    <div class="small">
+      Catalogue public : <a href="/catalogue" target="_blank" rel="noopener">/catalogue</a>
+    </div>
+  </div>
+
+  <script type="module">
+    import { upload } from 'https://esm.sh/@vercel/blob/client?bundle';
+
+    const form = document.getElementById('uploadForm');
+    const statusBox = document.getElementById('status');
+    const progressBox = document.getElementById('progress');
+    const submitBtn = document.getElementById('submitBtn');
+
+    function showStatus(message, type) {
+      statusBox.textContent = message;
+      statusBox.className = 'status ' + type;
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      const password = document.getElementById('password').value.trim();
+      const file = document.getElementById('file').files[0];
+
+      if (!password) {
+        showStatus('Merci de saisir le mot de passe.', 'err');
+        return;
+      }
+
+      if (!file) {
+        showStatus('Merci de choisir un PDF.', 'err');
+        return;
+      }
+
+      if (!file.name.toLowerCase().endsWith('.pdf')) {
+        showStatus('Le fichier doit être un PDF.', 'err');
+        return;
+      }
+
+      submitBtn.disabled = true;
+      progressBox.textContent = 'Préparation de l’envoi...';
+      showStatus('', 'ok');
+      statusBox.style.display = 'none';
+
+      try {
+        const blob = await upload('catalogues/catalogue.pdf', file, {
+          access: 'public',
+          handleUploadUrl: '/api/catalogue-upload',
+          clientPayload: JSON.stringify({ password }),
+        });
+
+        progressBox.textContent = '';
+        showStatus(
+          'Catalogue mis à jour avec succès.\nRecharge /catalogue dans 1 minute maximum si l’ancienne version reste en cache.',
+          'ok'
+        );
+
+        form.reset();
+        console.log('Upload terminé :', blob);
+      } catch (error) {
+        progressBox.textContent = '';
+        showStatus(error?.message || 'Erreur pendant l’upload.', 'err');
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

@@ -10,6 +10,7 @@
       padding: 0;
       height: 100%;
       background: #222;
+      font-family: Arial, sans-serif;
     }
     .topbar {
       height: 56px;
@@ -19,7 +20,6 @@
       padding: 0 16px;
       background: #111;
       color: white;
-      font-family: Arial, sans-serif;
       box-sizing: border-box;
     }
     .topbar a {
@@ -43,11 +43,11 @@
 <body>
   <div class="topbar">
     <div>Catalogue de location</div>
-    <a href="/catalogue.pdf" target="_blank" rel="noopener">Ouvrir le PDF seul</a>
+    <a href="/api/catalogue-file" target="_blank" rel="noopener">Ouvrir le PDF seul</a>
   </div>
 
   <div class="viewer">
-    <iframe src="/catalogue.pdf#view=FitH"></iframe>
+    <iframe src="/api/catalogue-file"></iframe>
   </div>
 </body>
 </html>

@@ -1,25 +1,23 @@
 import { handleUpload } from '@vercel/blob/client';
 
+const EXPECTED_PATHNAME = 'catalogues/catalogue.pdf';
 const MAX_SIZE_MB = 30;
 const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
-const EXPECTED_PATHNAME = 'catalogues/catalogue.pdf';
-const CALLBACK_URL = 'https://catalogue-location.vercel.app/api/catalogue-upload';
 
-export default async function handler(request) {
-  if (request.method !== 'POST') {
-    return Response.json(
-      { error: 'Méthode non autorisée.' },
-      { status: 405 }
-    );
-  }
-
+export async function POST(request) {
   try {
     if (!process.env.BLOB_READ_WRITE_TOKEN) {
-      throw new Error('BLOB_READ_WRITE_TOKEN manquant sur Vercel.');
+      return Response.json(
+        { error: 'BLOB_READ_WRITE_TOKEN manquant sur Vercel.' },
+        { status: 500 }
+      );
     }
 
     if (!process.env.ADMIN_PASSWORD) {
-      throw new Error('ADMIN_PASSWORD manquant sur Vercel.');
+      return Response.json(
+        { error: 'ADMIN_PASSWORD manquant sur Vercel.' },
+        { status: 500 }
+      );
     }
 
     const body = await request.json();
@@ -54,27 +52,24 @@ export default async function handler(request) {
           allowOverwrite: true,
           maximumSizeInBytes: MAX_SIZE_BYTES,
           cacheControlMaxAge: 60,
-          callbackUrl: CALLBACK_URL,
-          tokenPayload: JSON.stringify({
-            updatedAt: Date.now()
-          })
         };
       },
       onUploadCompleted: async ({ blob }) => {
         console.log('Catalogue mis à jour :', blob.url);
-      }
+      },
     });
 
     return Response.json(jsonResponse);
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : 'Erreur inconnue pendant l’upload.';
+      error instanceof Error
+        ? error.message
+        : 'Erreur inconnue pendant l’upload.';
 
     let status = 400;
 
     if (message.includes('Mot de passe incorrect')) status = 401;
     if (message.includes('manquant sur Vercel')) status = 500;
-    if (message.includes('Méthode non autorisée')) status = 405;
 
     return Response.json({ error: message }, { status });
   }

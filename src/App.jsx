@@ -10,7 +10,9 @@ const headers = {
 };
 
 async function query(table, params = "") {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, { headers });
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, {
+    headers: { ...headers, "Range": "0-9999", "Prefer": "count=exact" },
+  });
   return res.json();
 }
 

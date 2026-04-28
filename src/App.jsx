@@ -10,10 +10,27 @@ const headers = {
 };
 
 async function query(table, params = "") {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, {
-    headers: { ...headers, "Range": "0-9999", "Prefer": "count=exact" },
-  });
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, { headers });
   return res.json();
+}
+
+// Charge TOUS les enregistrements par pages de 1000 (contourne la limite Supabase)
+async function queryAll(table, params = "") {
+  const PAGE = 1000;
+  let all = [];
+  let from = 0;
+  while (true) {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/${table}?${params}&limit=${PAGE}&offset=${from}`,
+      { headers }
+    );
+    const page = await res.json();
+    if (!Array.isArray(page) || page.length === 0) break;
+    all = all.concat(page);
+    if (page.length < PAGE) break;
+    from += PAGE;
+  }
+  return all;
 }
 
 const CAT_COLORS = {
@@ -43,7 +60,7 @@ export default function App() {
     Promise.all([
       query("rental_categories", "order=sort_order"),
       query("rental_suppliers", "order=name"),
-      query("rental_products", "select=*,rental_suppliers(name,website),rental_categories(name,parent_id)&order=brand,model"),
+      queryAll("rental_products", "select=*,rental_suppliers(name,website),rental_categories(name,parent_id)&order=brand,model"),
     ]).then(([cats, sups, prods]) => {
       setCategories(cats);
       setParentCats(cats.filter((c) => !c.parent_id));
